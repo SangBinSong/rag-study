@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rg:*)",
+      "Bash(jq:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(grep:*)",
+      "WebSearch",
+      "mcp__context7"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
