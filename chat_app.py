@@ -1,6 +1,7 @@
 """
 RAG Study Chat App - Simple Chat UI following Streamlit best practices
 """
+from pprint import pprint
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 import streamlit as st
 from langchain_openai import ChatOpenAI
@@ -11,8 +12,13 @@ from langchain_core.messages import (
     trim_messages,
 )
 from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, MessagesPlaceholder, SystemMessagePromptTemplate
+from langchain.retrievers import BM25Retriever, EnsembleRetriever, ContextualCompressionRetriever
 from langchain_core.output_parsers import StrOutputParser
+from langchain_community.document_compressors import JinaRerank
+
 from dotenv import load_dotenv
+
+from module.vector_db import VectorDB
 
 load_dotenv()
 
@@ -75,9 +81,41 @@ def make_chain():
 
     return chain
 
+@st.cache_resource
+def get_vector_db():
+    """Get vector database"""
+    return VectorDB(storage_path="./db/streamlit_rag_demo")
+
 def process_message(user_input):
     """Process user message and generate response (mock implementation)"""
     chain = make_chain()
+
+    vector_db = get_vector_db()
+
+    # 1) Dense retriever
+    dense = vector_db.as_retriever(search_kwargs={"k": 10})
+
+    # 2) BM25 retriever (항상 사용)
+    bm25 = BM25Retriever.from_documents(list(vector_db.vectorstore.docstore._dict.values()))
+    bm25.k = 10
+
+    # 3) 앙상블 (BM25 0.4 + Dense 0.6)
+    base = EnsembleRetriever(
+        retrievers=[bm25, dense],
+        weights=[0.4, 0.6],
+    )
+
+    # 4) 리랭커/압축 (JinaRerank)
+    compressor = JinaRerank(
+        model="jina-reranker-v2-base-multilingual",
+        top_n=5
+    )
+
+    retriever = ContextualCompressionRetriever( # 리트리버 래퍼를 이용하여 리랭크 진행
+        base_retriever=base,
+        base_compressor=compressor
+    )
+
     response = chain.invoke(
         {
             "document": "나비는 바람입니다.",

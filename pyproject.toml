@@ -13,5 +13,6 @@ dependencies = [
     "langchain-pymupdf4llm>=0.4.1",
     "magika>=0.6.2",
     "python-dotenv>=1.1.1",
+    "rank-bm25>=0.2.2",
     "streamlit>=1.49.1",
 ]
