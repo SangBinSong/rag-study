@@ -33,8 +33,11 @@ export OPENAI_API_KEY="your-key-here"
 ### Running the Project
 
 ```bash
-# Run main demo
+# Run main demo (CLI)
 uv run main.py
+
+# Run Streamlit web app
+uv run streamlit run streamlit_app.py
 
 # Test document loader with sample PDF
 uv run module/document-load.py

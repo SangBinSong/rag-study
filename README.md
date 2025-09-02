@@ -33,8 +33,11 @@ export OPENAI_API_KEY="your-api-key-here"
 ### 데모 실행
 
 ```bash
-# 통합 데모 실행
+# CLI 데모 실행
 uv run main.py
+
+# Streamlit 웹 앱 실행
+uv run streamlit run streamlit_app.py
 
 # 개별 모듈 테스트
 uv run module/document-load.py  # 문서 로더 테스트
