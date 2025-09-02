@@ -1,0 +1,17 @@
+[project]
+name = "rag-study"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "faiss-cpu>=1.12.0",
+    "langchain>=0.3.27",
+    "langchain-community>=0.3.29",
+    "langchain-faiss>=0.1.1",
+    "langchain-openai>=0.3.32",
+    "langchain-pymupdf4llm>=0.4.1",
+    "magika>=0.6.2",
+    "python-dotenv>=1.1.1",
+    "streamlit>=1.49.1",
+]
