@@ -26,8 +26,10 @@ AI 기반 문서 처리와 벡터 검색을 위한 RAG(Retrieval-Augmented Gener
 # 의존성 설치
 uv sync
 
-# OpenAI API 키 설정
-export OPENAI_API_KEY="your-api-key-here"
+# .env 파일 생성하여 API 키 설정
+cp .env.example .env
+# 또는 직접 생성
+echo "OPENAI_API_KEY=your-api-key-here" > .env
 ```
 
 ### 데모 실행
@@ -40,8 +42,8 @@ uv run main.py
 uv run streamlit run streamlit_app.py
 
 # 개별 모듈 테스트
-uv run module/document-load.py  # 문서 로더 테스트
-uv run module/vector-db.py      # 벡터 데이터베이스 테스트
+uv run module/document-parser.py  # 문서 로더 테스트
+uv run module/vector-db.py        # 벡터 데이터베이스 테스트
 ```
 
 ## 📁 프로젝트 구조
@@ -49,12 +51,14 @@ uv run module/vector-db.py      # 벡터 데이터베이스 테스트
 ```text
 rag-study/
 ├── module/
-│   ├── document-load.py    # Magika AI 기반 문서 로더
+│   ├── document-parser.py  # Magika AI 기반 문서 로더
 │   └── vector-db.py        # FAISS 벡터 데이터베이스 래퍼
 ├── sample/
 │   └── 국가별 공공부문 AI 도입 및 활용 전략.pdf  # 테스트용 한국어 PDF
 ├── test/                   # 간단한 테스트 스크립트들
-├── main.py                 # 통합 데모
+├── main.py                 # CLI 통합 데모
+├── streamlit_app.py        # 웹 UI 데모
+├── .env.example            # 환경변수 템플릿
 └── CLAUDE.md              # Claude Code용 개발 가이드
 ```
 
@@ -63,12 +67,16 @@ rag-study/
 ### 기본 워크플로우
 
 ```python
-from module.document_load import DocumentLoader
+from module.document_parser import load_documents
 from module.vector_db import VectorDB
 
 # 1. 문서 로딩 (Magika AI 검출)
-loader = DocumentLoader(chunk_size=1000, chunk_overlap=200)
-documents = loader.load_and_split("sample/국가별 공공부문 AI 도입 및 활용 전략.pdf")
+documents = load_documents(
+    "sample/국가별 공공부문 AI 도입 및 활용 전략.pdf",
+    chunk_size=1000, 
+    chunk_overlap=200,
+    split_documents=True
+)
 
 # 2. 벡터 데이터베이스 구축
 vector_db = VectorDB(storage_path="./db/faiss_store")

@@ -26,8 +26,10 @@ This is a RAG (Retrieval-Augmented Generation) study project built with LangChai
 # Install dependencies with uv (Python 3.12 required)
 uv sync
 
-# Set OpenAI API key for embeddings
-export OPENAI_API_KEY="your-key-here"
+# Create .env file for API key configuration
+cp .env.example .env
+# Or create directly
+echo "OPENAI_API_KEY=your-key-here" > .env
 ```
 
 ### Running the Project
@@ -40,7 +42,7 @@ uv run main.py
 uv run streamlit run streamlit_app.py
 
 # Test document loader with sample PDF
-uv run module/document-load.py
+uv run module/document-parser.py
 
 # Test vector database functionality  
 uv run module/vector-db.py
@@ -60,7 +62,7 @@ uv run test/pydantic-test.py
 ```text
 rag-study/
 ├── module/
-│   ├── document-load.py    # Magika AI-based document loader
+│   ├── document-parser.py  # Magika AI-based document loader
 │   └── vector-db.py        # FAISS vector database wrapper
 ├── test/                   # Simple test scripts
 │   ├── faiss-test.py
@@ -68,7 +70,9 @@ rag-study/
 │   └── pydantic-test.py
 ├── sample/                 # Sample documents
 │   └── 국가별 공공부문 AI 도입 및 활용 전략.pdf
-├── main.py                 # Integration demo
+├── main.py                 # CLI integration demo
+├── streamlit_app.py        # Web UI demo
+├── .env.example            # Environment variables template
 ├── pyproject.toml          # uv project configuration
 └── CLAUDE.md              # This file
 ```
@@ -78,12 +82,16 @@ rag-study/
 ### DocumentLoader + VectorDB Workflow
 
 ```python
-from module.document_load import DocumentLoader
+from module.document_parser import load_documents
 from module.vector_db import VectorDB
 
 # Load documents with Magika AI detection
-loader = DocumentLoader(chunk_size=1000, chunk_overlap=200)
-documents = loader.load_and_split("sample/국가별 공공부문 AI 도입 및 활용 전략.pdf")
+documents = load_documents(
+    "sample/국가별 공공부문 AI 도입 및 활용 전략.pdf",
+    chunk_size=1000, 
+    chunk_overlap=200,
+    split_documents=True
+)
 
 # Store in vector database
 vector_db = VectorDB(storage_path="./db/faiss_store")
