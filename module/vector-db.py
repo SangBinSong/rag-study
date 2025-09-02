@@ -10,7 +10,7 @@ from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.embeddings import Embeddings
 from langchain_core.documents import Document
-from pydantic.dataclasses import dataclass
+from pydantic import BaseModel
 
 # Load environment variables
 load_dotenv()
@@ -30,8 +30,7 @@ class VectorDB:
     - 단순하고 명확한 API
     """
 
-    @dataclass
-    class EmbeddingInfo:
+    class EmbeddingInfo(BaseModel):
         model_class: str
         model_name: str
         embedding_size: int
@@ -260,6 +259,10 @@ class VectorDB:
             raise RuntimeError("벡터스토어가 초기화되지 않았습니다")
         return self.vectorstore.as_retriever(**kwargs)
     
+    def is_empty(self) -> bool:
+        """벡터스토어가 비어있는지 확인"""
+        return getattr(self.vectorstore.index, 'ntotal', 0) == 0
+
     def get_stats(self) -> Dict[str, Any]:
         """통계 정보"""
         if not self.vectorstore:
@@ -287,51 +290,50 @@ class VectorDB:
 def example_usage():
     """사용 예제"""
     print("=== VectorDB 사용 예제 ===")
-    
-    # 1. 메모리 모드 (빈 벡터스토어)
-    print("\n1. 메모리 모드:")
-    vector_db = VectorDB()  # 자동으로 빈 벡터스토어 생성
-    
-    if vector_db.vectorstore is None:
-        print("메모리 모드: 벡터스토어가 생성되지 않음 (storage_path 없음)")
-    
-    # 2. 새로운 영속성 모드 (자동 초기화)
-    print("\n2. 새로운 벡터스토어:")
-    vector_db_new = VectorDB(storage_path="db/faiss_new")  # 자동으로 빈 벡터스토어 생성
-    
+
     texts = [
         "랑체인은 LLM 애플리케이션 개발을 위한 프레임워크입니다.",
         "FAISS는 벡터 유사도 검색을 위한 라이브러리입니다.",
         "벡터스토어는 텍스트를 벡터로 변환하여 저장합니다."
     ]
-    
-    vector_db_new.add_texts(texts)
-    
-    # Document 객체로도 추가 가능
+
     documents = [
         Document(page_content="Document 객체 테스트", metadata={"source": "test"}),
         Document(page_content="메타데이터가 있는 문서", metadata={"type": "example"})
     ]
-    vector_db_new.add_documents(documents)
     
-    vector_db_new.save()
-    results = vector_db_new.similarity_search("FAISS란 무엇인가요?", k=1)
+    
+    # 1. 메모리 모드 (빈 벡터스토어)
+    print("\n1. 메모리 모드:")
+    vector_db = VectorDB()  # 자동으로 빈 벡터스토어 생성
+
+    vector_db.add_texts(texts)
+    
+    results = vector_db.similarity_search("FAISS란 무엇인가요?", k=1)
     print(f"검색 결과: {results[0].page_content}")
+
+    # 2. 새로운 영속성 모드 (자동 초기화)
+    print("\n2. 새로운 벡터스토어:")
+    vector_db_new = VectorDB(storage_path="./test/db/faiss_new")  # 자동으로 빈 벡터스토어 생성
+
     print(f"통계: {vector_db_new.get_stats()}")
-    
-    # 3. 기존 벡터스토어 로드 (자동)
-    print("\n3. 기존 벡터스토어 로드:")
-    vector_db_load = VectorDB(storage_path="db/faiss_new")  # 자동으로 기존 파일 로드
-    results = vector_db_load.similarity_search("프레임워크", k=1)
-    print(f"검색 결과: {results[0].page_content}")
-    
-    # 4. 덮어쓰기 모드
-    print("\n4. 덮어쓰기 모드 (임베딩 불일치 시):")
-    try:
-        VectorDB(storage_path="db/faiss_new", override=True)
-        print("덮어쓰기 모드: 성공적으로 로드됨")
-    except Exception as e:
-        print(f"덮어쓰기 모드 에러: {e}")
+    if vector_db_new.is_empty():
+        vector_db_new.add_texts(texts)
+        # Document 객체로도 추가 가능
+        vector_db_new.add_documents(documents)
+        
+        results = vector_db_new.similarity_search("FAISS란 무엇인가요?", k=1)
+        print(f"검색 결과: {results[0].page_content}")
+        print(f"통계: {vector_db_new.get_stats()}")
+
+        vector_db_new.save()
+    else:
+        # 3. 기존 벡터스토어 로드 (자동)
+        print("\n3. 기존 벡터스토어 로드:")
+        results = vector_db_new.similarity_search("프레임워크", k=1)
+        print(f"검색 결과: {results[0].page_content}")
+        
+        vector_db_new.save()
 
 
 if __name__ == "__main__":
