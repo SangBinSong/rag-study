@@ -1,6 +1,6 @@
 """
-Universal Document Loader Module using LangChain
-Supports various document formats including PDF, TXT, DOCX, HTML, CSV, etc.
+LangChain을 사용한 범용 문서 로더 모듈
+PDF, TXT, DOCX, HTML, CSV 등 다양한 문서 형식을 지원합니다.
 """
 
 import logging
@@ -26,9 +26,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DocumentLoader:
-    """Universal document loader supporting multiple file formats with AI-based file type detection"""
+    """AI 기반 파일 타입 검출을 지원하는 다중 포맷 문서 로더"""
     
-    # Magika file types to LangChain loader mapping
+    # Magika 파일 타입과 LangChain 로더 매핑
     MAGIKA_LOADER_MAPPING = {
         'pdf': PyMuPDFLoader,
         'txt': TextLoader,
@@ -44,7 +44,7 @@ class DocumentLoader:
         'json': JSONLoader
     }
     
-    # Fallback extension mapping (for when magika detection fails)
+    # 확장자 기반 폴백 매핑 (Magika 검출 실패 시)
     EXTENSION_LOADER_MAPPING = {
         '.pdf': PyMuPDFLoader,
         '.txt': TextLoader,
@@ -63,11 +63,11 @@ class DocumentLoader:
     
     def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200):
         """
-        Initialize DocumentLoader
+        문서 로더 초기화
         
         Args:
-            chunk_size: Size of text chunks for splitting
-            chunk_overlap: Overlap between chunks
+            chunk_size: 텍스트 청크 분할 크기
+            chunk_overlap: 청크 간 겹침 크기
         """
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
@@ -77,18 +77,18 @@ class DocumentLoader:
             length_function=len,
             separators=["\n\n", "\n", " ", ""]
         )
-        # Initialize Magika for AI-based file type detection
+        # AI 기반 파일 타입 검출을 위한 Magika 초기화
         self.magika = Magika()
     
     def _detect_file_type(self, file_path: Path) -> str:
         """
-        Detect file type using Magika AI-based detection
+        Magika AI를 사용한 파일 타입 검출
         
         Args:
-            file_path: Path to the file
+            file_path: 파일 경로
             
         Returns:
-            Detected file type string
+            검출된 파일 타입 문자열
         """
         try:
             result = self.magika.identify_path(file_path)
@@ -106,42 +106,42 @@ class DocumentLoader:
         **kwargs
     ) -> List[Document]:
         """
-        Load a single document from file path
+        파일 경로에서 단일 문서 로드
         
         Args:
-            file_path: Path to the document file
-            encoding: Text encoding (default: utf-8)
-            **kwargs: Additional arguments for specific loaders
+            file_path: 문서 파일 경로
+            encoding: 텍스트 인코딩 (기본값: utf-8)
+            **kwargs: 특정 로더용 추가 인자
             
         Returns:
-            List of Document objects
+            Document 객체 리스트
             
         Raises:
-            FileNotFoundError: If file doesn't exist
-            ValueError: If file format is not supported
+            FileNotFoundError: 파일이 존재하지 않는 경우
+            ValueError: 지원되지 않는 파일 형식인 경우
         """
         file_path = Path(file_path)
         
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         
-        # Use Magika AI-based detection only
+        # Magika AI 기반 검출만 사용
         detected_type = self._detect_file_type(file_path)
         
         if not detected_type or detected_type not in self.MAGIKA_LOADER_MAPPING:
-            raise ValueError(f"Unsupported file format detected by Magika: {detected_type}")
+            raise ValueError(f"Magika가 지원하지 않는 파일 형식을 검출했습니다: {detected_type}")
         
         loader_class = self.MAGIKA_LOADER_MAPPING[detected_type]
-        logger.info(f"Using Magika detection: {detected_type}")
+        logger.info(f"Magika 검출 사용: {detected_type}")
         
         try:
-            # Handle specific loader requirements based on detected type
+            # 검출된 타입에 따른 특정 로더 요구사항 처리
             if detected_type == 'txt':
                 loader = loader_class(str(file_path), encoding=encoding)
             elif detected_type == 'csv':
                 loader = loader_class(str(file_path), encoding=encoding, **kwargs)
             elif detected_type == 'json':
-                # JSON loader requires jq_schema parameter
+                # JSON 로더는 jq_schema 매개변수가 필요
                 jq_schema = kwargs.get('jq_schema', '.')
                 loader = loader_class(str(file_path), jq_schema=jq_schema)
             else:
@@ -149,7 +149,7 @@ class DocumentLoader:
             
             documents = loader.load()
             
-            # Add metadata with Magika detection results
+            # Magika 검출 결과를 포함한 메타데이터 추가
             for doc in documents:
                 doc.metadata.update({
                     'source': str(file_path),
@@ -331,17 +331,17 @@ def load_documents(
     **kwargs
 ) -> List[Document]:
     """
-    Convenience function to load documents from a file or directory
+    파일 또는 디렉터리에서 문서를 로드하는 편의 함수
     
     Args:
-        path: Path to file or directory
-        chunk_size: Size of text chunks for splitting
-        chunk_overlap: Overlap between chunks  
-        split_documents: Whether to split documents into chunks
-        **kwargs: Additional arguments for loaders
+        path: 파일 또는 디렉터리 경로
+        chunk_size: 텍스트 청크 분할 크기
+        chunk_overlap: 청크 간 겹침 크기
+        split_documents: 문서를 청크로 분할할지 여부
+        **kwargs: 로더용 추가 인자
         
     Returns:
-        List of Document objects
+        Document 객체 리스트
     """
     loader = DocumentLoader(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     path = Path(path)
@@ -360,63 +360,63 @@ def load_documents(
 
 
 if __name__ == "__main__":
-    # Example usage with real PDF file
+    # 실제 PDF 파일을 사용한 예제
     loader = DocumentLoader(chunk_size=1000, chunk_overlap=200)
     
-    # Get supported formats
-    print("🔧 Supported formats:", loader.get_supported_formats())
+    # 지원 형식 확인
+    print("🔧 지원 형식:", loader.get_supported_formats())
     print()
     
-    # Example 1: Load a single PDF file with Magika detection
+    # 예제 1: Magika 검출을 사용한 단일 PDF 파일 로드
     try:
         pdf_path = "sample/국가별 공공부문 AI 도입 및 활용 전략.pdf"
-        print(f"📄 Loading PDF: {pdf_path}")
+        print(f"📄 PDF 로딩: {pdf_path}")
         documents = loader.load_and_split(pdf_path)
         
-        print(f"✅ Successfully loaded {len(documents)} document chunks")
+        print(f"✅ 성공적으로 {len(documents)}개 문서 청크를 로드했습니다")
         
-        # Show first document info
+        # 첫 번째 문서 정보 표시
         if documents:
             first_doc = documents[0]
-            print(f"📊 First chunk preview (first 200 chars):")
-            print(f"   Content: {first_doc.page_content[:200]}...")
-            print(f"   Metadata: {first_doc.metadata}")
+            print(f"📊 첫 번째 청크 미리보기 (처음 200자):")
+            print(f"   내용: {first_doc.page_content[:200]}...")
+            print(f"   메타데이터: {first_doc.metadata}")
         print()
         
-        # Get document statistics
+        # 문서 통계 확인
         info = loader.get_document_info(documents)
-        print("📈 Document Statistics:")
+        print("📈 문서 통계:")
         for key, value in info.items():
             print(f"   {key}: {value}")
         print()
         
     except Exception as e:
-        print(f"❌ Error loading PDF: {e}")
+        print(f"❌ PDF 로딩 오류: {e}")
         print()
     
-    # Example 2: Load all documents from sample directory  
+    # 예제 2: 샘플 디렉터리의 모든 문서 로드
     try:
         sample_dir = "sample"
-        print(f"📁 Loading all documents from: {sample_dir}")
+        print(f"📁 디렉터리의 모든 문서 로딩: {sample_dir}")
         all_documents = loader.load_directory(sample_dir, show_progress=True, recursive=True)
         
         if all_documents:
             dir_info = loader.get_document_info(all_documents)
-            print(f"📈 Directory Statistics:")
+            print(f"📈 디렉터리 통계:")
             for key, value in dir_info.items():
                 print(f"   {key}: {value}")
         else:
-            print("   No documents found or loaded")
+            print("   문서를 찾거나 로드하지 못했습니다")
             
     except Exception as e:
-        print(f"❌ Error loading directory: {e}")
+        print(f"❌ 디렉터리 로딩 오류: {e}")
     
-    # Example 3: Using convenience function
-    print("\n🚀 Using convenience function:")
+    # 예제 3: 편의 함수 사용
+    print("\n🚀 편의 함수 사용:")
     try:
         quick_docs = load_documents("sample/국가별 공공부문 AI 도입 및 활용 전략.pdf", 
                                   chunk_size=500, 
                                   split_documents=True)
-        print(f"✅ Quick load: {len(quick_docs)} chunks")
+        print(f"✅ 빠른 로드: {len(quick_docs)}개 청크")
     except Exception as e:
-        print(f"❌ Quick load error: {e}")
+        print(f"❌ 빠른 로드 오류: {e}")
