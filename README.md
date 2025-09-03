@@ -1,153 +1,133 @@
 # RAG Study Project
 
-AI 기반 문서 처리와 벡터 검색을 위한 RAG(Retrieval-Augmented Generation) 연구 프로젝트입니다.
+AI 기반 문서 처리와 벡터 검색, 그리고 질의응답을 위한 RAG(Retrieval-Augmented Generation) 연구 및 데모 프로젝트입니다.
+
+이 프로젝트는 최신 RAG 아키텍처의 핵심 구성 요소를 학습하고 실험할 수 있도록 설계되었습니다. 지능형 문서 로딩부터 고급 검색 기법(하이브리드 검색, 리랭킹) 및 대화형 UI에 이르는 전체 파이프라인을 포함합니다.
 
 ## 🚀 주요 특징
 
-- **Magika AI 파일 검출**: 확장자에 의존하지 않는 AI 기반 문서 타입 식별
-- **FAISS 벡터 검색**: 메모리 기반 고성능 유사도 검색
-- **한국어 문서 지원**: PyMuPDFLoader를 통한 정확한 한국어 PDF 처리
-- **임베딩 호환성**: 모델 변경 시 자동 호환성 검사 및 재구축
+- **AI 기반 파일 검출**: Google의 Magika 라이브러리를 사용하여 파일 확장자가 아닌 내용 기반으로 문서를 식별합니다.
+- **하이브리드 검색**: 의미적 유사도를 찾는 벡터 검색(FAISS)과 키워드 기반의 검색(BM25)을 결합하여 검색 정확도를 높입니다.
+- **리랭킹**: Jina Reranker를 통해 검색된 결과의 순위를 재조정하여 가장 관련성 높은 문서를 상위로 올립니다.
+- **세 가지 데모 앱**:
+    1. `main.py`: 핵심 기능을 테스트하는 CLI 앱
+    2. `streamlit_app.py`: 문서 로딩 및 벡터 DB 관리를 위한 웹 UI
+    3. `chat_app.py`: 고급 RAG 파이프라인을 적용한 대화형 챗봇 UI
+- **한국어 처리 최적화**: `PyMuPDFLoader`를 사용하여 한국어 PDF 문서에서 텍스트를 정확하게 추출합니다.
+- **임베딩 호환성 관리**: 임베딩 모델 변경 시 벡터 DB의 호환성을 자동으로 검사하고 재구축을 유도합니다.
 
 ## 🛠️ 기술 스택
 
-- **Python 3.12**: 최신 Python 기능 활용
-- **LangChain**: 문서 로딩 및 텍스트 분할
-- **FAISS**: 고성능 벡터 유사도 검색
-- **Magika**: Google의 AI 기반 파일 타입 검출
-- **OpenAI Embeddings**: 텍스트 임베딩 생성
-- **uv**: 빠른 Python 패키지 관리
+- **Python 3.12** & **uv**
+- **LangChain**: RAG 파이프라인 구축
+- **Streamlit**: 대화형 웹 UI
+- **FAISS**: 고성능 벡터 유사도 검색 (Dense Retriever)
+- **BM25**: 키워드 기반 검색 (Sparse Retriever)
+- **Magika**: AI 기반 파일 타입 식별
+- **Jina Rerank**: 검색 결과 리랭킹
+- **OpenAI**: 텍스트 임베딩 및 LLM
 
 ## 📦 설치 및 실행
 
-### 환경 설정
+### 1. 환경 설정
 
 ```bash
-# 의존성 설치
+# 프로젝트 복제
+git clone https://github.com/your-username/rag-study.git
+cd rag-study
+
+# 의존성 설치 (uv 사용)
 uv sync
 
-# .env 파일 생성하여 API 키 설정
+# .env 파일 생성 및 API 키 설정
 cp .env.example .env
-# 또는 직접 생성
-echo "OPENAI_API_KEY=your-api-key-here" > .env
 ```
 
-### 데모 실행
+`.env` 파일에 `OPENAI_API_KEY`를 입력하세요. Jina Reranker를 사용하려면 `JINA_API_KEY`도 필요할 수 있습니다.
+
+### 2. 데모 실행
+
+이 프로젝트는 세 가지 다른 데모 애플리케이션을 제공합니다.
+
+#### 튜토리얼 1: 문서 로딩 및 DB 관리 (Web UI)
+
+문서를 로딩하고 벡터 데이터베이스를 구축하는 UI입니다. **채팅 데모를 실행하기 전에 이 단계를 먼저 진행하는 것이 좋습니다.**
 
 ```bash
-# CLI 데모 실행
-uv run main.py
-
-# Streamlit 웹 앱 실행
 uv run streamlit run streamlit_app.py
+```
 
-# 개별 모듈 테스트
-uv run module/document-parser.py  # 문서 로더 테스트
-uv run module/vector-db.py        # 벡터 데이터베이스 테스트
+#### 튜토리얼 2: RAG 채팅 (Web UI)
+
+구축된 벡터 DB를 사용하여 문서 기반 질의응답을 수행하는 채팅 앱입니다.
+
+```bash
+uv run streamlit run chat_app.py
+```
+
+#### 튜토리얼 3: CLI 데모
+
+주요 모듈의 핵심 기능을 테스트할 수 있는 커맨드 라인 인터페이스입니다.
+
+```bash
+uv run main.py
 ```
 
 ## 📁 프로젝트 구조
 
 ```text
 rag-study/
-├── module/
-│   ├── document-parser.py  # Magika AI 기반 문서 로더
-│   └── vector-db.py        # FAISS 벡터 데이터베이스 래퍼
-├── sample/
-│   └── 국가별 공공부문 AI 도입 및 활용 전략.pdf  # 테스트용 한국어 PDF
-├── test/                   # 간단한 테스트 스크립트들
-├── main.py                 # CLI 통합 데모
-├── streamlit_app.py        # 웹 UI 데모
-├── .env.example            # 환경변수 템플릿
-└── CLAUDE.md              # Claude Code용 개발 가이드
+├── module/               # 핵심 로직 모듈
+│   ├── document_parser.py  # Magika AI 기반 지능형 문서 로더
+│   └── vector_db.py        # FAISS 벡터 DB 래퍼 (호환성 검사 포함)
+├── sample/               # 테스트용 샘플 문서
+├── test/                 # 단위/통합 테스트 스크립트
+├── .env.example          # 환경변수 템플릿
+├── main.py               # 튜토리얼 3: CLI 데모
+├── streamlit_app.py      # 튜토리얼 1: 문서 로딩 및 DB 관리 UI
+├── chat_app.py           # 튜토리얼 2: RAG 채팅 UI
+├── pyproject.toml        # 프로젝트 설정 및 의존성 (uv)
+└── README.md             # 프로젝트 안내 문서
 ```
 
-## 🔧 사용법
+## 🔧 RAG 파이프라인 워크플로우 (`chat_app.py`)
 
-### 기본 워크플로우
+`chat_app.py`는 다음과 같은 고급 RAG 파이프라인을 사용합니다.
 
-```python
-from module.document_parser import load_documents
-from module.vector_db import VectorDB
-
-# 1. 문서 로딩 (Magika AI 검출)
-documents = load_documents(
-    "sample/국가별 공공부문 AI 도입 및 활용 전략.pdf",
-    chunk_size=1000, 
-    chunk_overlap=200,
-    split_documents=True
-)
-
-# 2. 벡터 데이터베이스 구축
-vector_db = VectorDB(storage_path="./db/faiss_store")
-vector_db.add_documents(documents)
-
-# 3. 유사도 검색
-results = vector_db.similarity_search("AI 도입 전략은 무엇인가?", k=5)
-for doc in results:
-    print(f"답변: {doc.page_content[:100]}...")
-```
-
-### 지원 파일 형식
-
-Magika AI가 내용을 분석하여 지원하는 형식:
-
-- PDF, DOCX, PPTX, XLSX
-- TXT, MD, HTML, CSV, JSON
-- 확장자에 관계없이 파일 내용으로 판단
-
-## ⚡ 성능 최적화
-
-### 메모리 중심 설계
-
-- FAISS 인메모리 연산으로 빠른 검색
-- 선택적 디스크 저장으로 재임베딩 방지
-- 임베딩 모델 호환성 자동 검증
-
-### 한국어 처리 최적화
-
-- PyMuPDFLoader로 한국어 PDF 정확도 향상
-- 적절한 청크 크기와 오버랩으로 컨텍스트 보존
+1.  **사용자 질문** 입력
+2.  **하이브리드 검색 (Ensemble Retriever)**:
+    - **Dense Retriever (FAISS)**: 질문의 의미와 유사한 벡터를 검색합니다.
+    - **Sparse Retriever (BM25)**: 질문의 핵심 키워드와 일치하는 문서를 검색합니다.
+    - 두 검색 결과를 가중치(`[BM25: 0.4, FAISS: 0.6]`)를 두어 결합합니다.
+3.  **리랭킹 (Contextual Compression)**:
+    - **Jina Reranker**: 결합된 검색 결과 목록을 다시 평가하여 질문과 가장 관련성이 높은 순서로 정렬합니다.
+4.  **프롬프트 생성**:
+    - 리랭킹된 문서들을 컨텍스트로 하여 LLM에 전달할 프롬프트를 구성합니다.
+5.  **LLM 응답 생성**:
+    - **OpenAI (gpt-4.1-nano)** 모델이 컨텍스트를 기반으로 최종 답변을 생성합니다.
+6.  **답변** 출력
 
 ## 🧪 테스트
 
+개별 모듈 및 통합 기능을 테스트할 수 있습니다.
+
 ```bash
-# 개별 컴포넌트 테스트
-uv run test/faiss-test.py      # FAISS 기능 테스트
-uv run test/langchain-test.py  # LangChain 통합 테스트
-uv run test/pydantic-test.py   # 데이터 모델 테스트
+# 모듈별 기능 테스트
+uv run module/document_parser.py
+uv run module/vector_db.py
+
+# 통합 테스트
+uv run test/faiss-test.py
+uv run test/langchain-test.py
 ```
 
 ## 📚 학습 목표
 
-이 프로젝트를 통해 학습할 수 있는 내용:
-
-1. **현대적 문서 처리**: AI 기반 파일 타입 검출
-2. **벡터 데이터베이스**: FAISS를 활용한 고성능 검색
-3. **RAG 아키텍처**: 문서 검색과 생성 모델의 결합
-4. **임베딩 관리**: 모델 호환성과 버전 관리
-5. **한국어 NLP**: 다국어 문서 처리 최적화
-
-## 🔍 데모 결과 예시
-
-```text
-🔍 RAG Study Demo - AI 기반 문서 로딩 + 벡터 검색
-============================================================
-📋 지원 포맷: ['pdf', 'txt', 'csv', 'html', 'docx', 'pptx', 'xlsx', 'markdown', 'json']
-
-📄 문서 로딩: sample/국가별 공공부문 AI 도입 및 활용 전략.pdf
-✅ 성공! 47개 청크로 분할됨
-📊 문서 통계:
-   - 총 문자 수: 45,821
-   - 평균 청크 길이: 974
-   - 검출된 파일 타입: {'pdf': 47}
-   - 검출 방식: {'magika': 47}
-
-🔍 유사도 검색 데모:
-1. 질문: AI 도입 전략은 무엇인가?
-   답변 1: 정부는 공공부문 AI 도입을 위한 종합적인 전략을 수립하여...
-   답변 2: 디지털 정부 혁신을 통해 국민 서비스 향상과 행정 효율성을...
-```
+- AI 기반 파일 타입 식별 (Magika)
+- 하이브리드 검색 (FAISS + BM25) 및 리랭킹 (Jina)을 포함한 고급 RAG 아키텍처 이해
+- LangChain을 활용한 복잡한 RAG 파이프라인 구축
+- 임베딩 모델 호환성 관리 및 벡터 DB 운영
+- Streamlit을 이용한 인터랙티브 데모 앱 개발
 
 ## 🤝 기여
 
