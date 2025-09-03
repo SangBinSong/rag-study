@@ -38,19 +38,23 @@ def initialize_session():
         make_chain();
 
 def document_xml_print(query: str, retriever) -> str:
-
     documents = retriever.invoke(query)
+
     result = ""
-    for document in documents:
+    for i, document in enumerate(documents):
         metadata_keys = ['file_name', 'page']
-        metadata = [f"- {key}: {value}" for key, value in document.metadata.items() if key in metadata_keys]
-        result += f"""<document>
-<metadata>
+        metadata = [f"<{key}>{value}</{key}>" for key, value in document.metadata.items() if key in metadata_keys]
+
+        score = document.metadata.get('relevance_score', None)
+        score_attr = f'relevance_score="{score}"' if score is not None else ""
+        
+        result += f"""<document rank="{i+1}" {score_attr}>
+<source>
 {"\n".join(metadata)}
-</metadata>
-<document chunk>
+</source>
+<content>
 {document.page_content}
-</document chunk>
+</content>
 </document>
 """
     return result
@@ -59,7 +63,7 @@ def document_xml_print(query: str, retriever) -> str:
 def make_chain():
     """Make a chain for processing messages"""
     llm = ChatOpenAI(
-        model="gpt-5-nano",
+        model="gpt-4.1-nano",
         temperature=0.1
     )
 
@@ -107,8 +111,8 @@ def make_chain():
 
     # 4) 리랭커/압축 (JinaRerank)
     compressor = JinaRerank(
-        model="jina-reranker-v2-base-multilingual",
-        top_n=20
+        model="jina-reranker-m0",
+        top_n=15
     )
 
     retriever = ContextualCompressionRetriever( # 리트리버 래퍼를 이용하여 리랭크 진행
