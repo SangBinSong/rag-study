@@ -12,6 +12,11 @@ dependencies = [
     "langchain-openai>=0.3.32",
     "langchain-pymupdf4llm>=0.4.1",
     "magika>=0.6.2",
+    "pymupdf>=1.23.15",
+    "pytesseract>=0.3.10",
+    "pillow>=10.1.0",
+    "pdfplumber>=0.10.3",
     "python-dotenv>=1.1.1",
+    "rank-bm25>=0.2.2",
     "streamlit>=1.49.1",
 ]

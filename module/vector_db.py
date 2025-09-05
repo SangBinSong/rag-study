@@ -39,7 +39,8 @@ class VectorDB:
         self,
         embeddings: Optional[Embeddings] = None,
         storage_path: Optional[str] = None,
-        override: bool = True
+        override: bool = True,
+        force_new: bool = False
     ):
         """
         VectorDB 초기화
@@ -48,9 +49,11 @@ class VectorDB:
             embeddings: 임베딩 모델. None이면 OpenAI 기본값
             storage_path: 저장 경로. None이면 순수 메모리 모드
             override: 임베딩 불일치 시 덮어쓰기 여부
+            force_new: True이면 디스크에 파일이 있어도 빈 벡터스토어를 생성
         """
         self._storage_path = storage_path
         self._override = override
+        self._force_new = force_new
         self.embeddings = embeddings or OpenAIEmbeddings(model="text-embedding-3-small")
         self.vectorstore: Optional[FAISS] = None
 
@@ -60,8 +63,11 @@ class VectorDB:
             embedding_size=len(self.embeddings.embed_query("test"))
         )
         
+        # force_new가 True면 무조건 빈 벡터스토어 생성
+        if self._force_new:
+            self._create_empty_vectorstore()
         # storage_path가 있으면 초기화 로직 수행
-        if self._storage_path:
+        elif self._storage_path:
             self._initialize_vectorstore()
         else:
             self._create_empty_vectorstore()
@@ -149,8 +155,8 @@ class VectorDB:
                     )
                     logger.info("기존 FAISS 로드 완료")
                 except Exception as e:
-                    logger.error(f"FAISS 로드 실패: {e}")
-                    raise RuntimeError(f"FAISS 파일 로드 실패: {e}")
+                    logger.warning(f"FAISS 로드 실패: {e}. 빈 벡터스토어를 생성합니다.")
+                    self._create_empty_vectorstore()
             else:
                 raise ValueError(
                     f"임베딩 정보 파일이 없지만 FAISS 파일이 존재합니다: {self._storage_path}\n"
@@ -207,9 +213,10 @@ class VectorDB:
             )
             logger.info("기존 벡터스토어 로드 완료")
         except Exception as e:
-            error_msg = f"벡터스토어 파일이 손상되었습니다. 파일: {self._storage_path}을 수동으로 삭제하고 다시 시도하세요. 원인: {e}"
-            logger.error(error_msg)
-            raise RuntimeError(error_msg) from e
+            # 파일이 없거나 손상된 경우 -> 빈 벡터스토어 생성
+            logger.warning(f"기존 벡터스토어 로드 실패 ({e}). 빈 벡터스토어를 생성합니다.")
+            self._create_empty_vectorstore()
+            logger.info(f"빈 벡터스토어가 생성되었습니다. 추후 데이터 추가 후 save()를 호출하여 저장하세요.")
     
     
     def add_texts(self, texts: List[str], metadatas: Optional[List[dict]] = None) -> List[str]:
