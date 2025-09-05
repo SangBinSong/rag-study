@@ -1,6 +1,6 @@
 # RAG Study Project
 
-AI 기반 문서 처리와 벡터 검색을 위한 RAG(Retrieval-Augmented Generation) 연구 프로젝트입니다.
+AI 기반 문서 처리와 벡터 검색을 위한 RAG(Retrieval-Augmented Generation) 연구 프로젝트입니다. 
 
 ## 🚀 주요 특징
 
