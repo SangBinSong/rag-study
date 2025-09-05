@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import List, Union, Dict, Any
 from langchain_community.document_loaders import (
+    PyMuPDFLoader,
     TextLoader,
     CSVLoader,
     UnstructuredHTMLLoader,
@@ -16,7 +17,6 @@ from langchain_community.document_loaders import (
     UnstructuredMarkdownLoader,
     JSONLoader
 )
-from langchain.document_loaders import PyMuPDFLoader
 from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from magika import Magika

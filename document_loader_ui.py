@@ -194,7 +194,7 @@ def main():
         
         # PDF 처리 기본 설정 (사용자 UI 없음)
         extract_images = True
-        extract_tables = True
+        extract_tables = "markdown"
         split_documents = True
         
         image_dir = None  # 이미지 파일 저장 안함
@@ -286,15 +286,29 @@ def main():
                     status_text.text(f"📊 {i+1}/{len(files_to_process)} - {file_info['name']} 처리 중...")
                     
                     with st.spinner(f"📄 {file_info['name']} 분석 중..."):
-                        documents, stats = load_documents(
+                        documents = load_documents(
                             path=file_info['path'],
                             chunk_size=chunk_size,
                             chunk_overlap=chunk_overlap,
                             split_documents=split_documents,
                             extract_images=extract_images,
                             extract_tables=extract_tables,
-                            image_dir=image_dir if extract_images else None
                         )
+
+                        # 파일 유형별 카운트를 딕셔너리로 계산
+                        detected_types = {}
+                        for doc in documents:
+                            dtype = doc.metadata.get('detected_type', 'unknown')
+                            detected_types[dtype] = detected_types.get(dtype, 0) + 1
+                        
+                        stats = {
+                            'original_document_count': len(documents),
+                            'chunked_document_count': len(documents),
+                            'total_characters': sum(len(doc.page_content) for doc in documents),
+                            'detected_types': detected_types,
+                            'total_sources': len(set(doc.metadata.get('source', 'unknown') for doc in documents)),
+                            'average_doc_length': sum(len(doc.page_content) for doc in documents) // len(documents) if documents else 0
+                        }
                         
                         # 개별 문서 통계 저장 (평균 문서 길이를 청크 문서 기준으로 계산)
                         if stats.get('chunked_document_count', 0) > 0:
