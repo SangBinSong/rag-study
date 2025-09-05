@@ -34,7 +34,11 @@ def get_rag_instance():
             model="gpt-4.1-nano",
             temperature=0.1
         ),
-        vector_store=VectorDB(storage_path="./db/streamlit_rag_demo")
+        vector_store=VectorDB(storage_path="./db/streamlit_rag_demo"),
+        summarizer_llm=ChatOpenAI(
+            model="gpt-4.1-nano",
+            temperature=0.1
+        )
     )
 
 def main():
