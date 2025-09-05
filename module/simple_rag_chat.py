@@ -26,6 +26,7 @@ class SimpleRAGChat:
         ensemble_weights: list[float] = [0.4, 0.6]
         jina_reranker_model: str = "jina-reranker-m0"
         compressor_top_n: int = 15
+        use_history: bool = True
         
     def __init__(self, llm: BaseChatModel, vector_store: VectorDB, config: RAGCongig = RAGCongig()):
         self._llm: BaseChatModel = llm
@@ -89,9 +90,9 @@ class SimpleRAGChat:
         return result
 
     def _make_chain(self):
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                SystemMessage(content="""당신은 단순하게 질문에 답하는 챗봇입니다. 당신이 할 수 있는 일은 오직 질문에 대한 답변입니다.
+        # 히스토리 사용 여부에 따라 메시지 구성을 다르게 함
+        messages = [
+            SystemMessage(content="""당신은 단순하게 질문에 답하는 챗봇입니다. 당신이 할 수 있는 일은 오직 질문에 대한 답변입니다.
 
     1. 한국어로 친절하게 답변하세요.
     2. 성별/인종/국적/연령/지역/종교 등에 대한 차별과, 욕설 등에 답변하지 않도록 하세요. 그리고 해당 혐오표현을 유도하는 질문이라면, 적합하지 않다고 판단하여 답변하지 않도록 합니다.
@@ -100,33 +101,52 @@ class SimpleRAGChat:
     5. 문서에 대해 확신을 가지고 단정적으로 답변해 주세요.
     6. 추측이나 정보의 출처를 드러내는 표현은 쓰지 마세요.
     7. 질문의 의도가 문서와 관련이 없다면 내용을 찾지 못했다고 답변하세요.
-    """),
-                MessagesPlaceholder(variable_name="trim_history"),
-                SystemMessagePromptTemplate.from_template("documents>\n{documents}</documents>"),
-                HumanMessagePromptTemplate.from_template("<question>\n{input}\n</question>"),
-            ]
-        )
+    """)
+        ]
+        
+        # 히스토리 사용 시에만 MessagesPlaceholder 추가
+        if self._config.use_history:
+            messages.append(MessagesPlaceholder(variable_name="trim_history"))
+            
+        messages.extend([
+            SystemMessagePromptTemplate.from_template("documents>\n{documents}</documents>"),
+            HumanMessagePromptTemplate.from_template("<question>\n{input}\n</question>"),
+        ])
+        
+        prompt = ChatPromptTemplate.from_messages(messages)
 
         output_parser = StrOutputParser()
 
-        chain = (
-            {
-                "input" : itemgetter("input"),
-                "history" : itemgetter("history"),
-                "trim_history" : RunnableLambda(
-                    lambda x: trim_messages(
-                        x["history"],
-                        max_tokens=2000,
-                        strategy="last",
-                        token_counter=self._llm.get_num_tokens_from_messages,
-                    )
-                ),
-                "documents" : RunnableLambda( lambda x: self._document_xml_convert(x["input"]) ),
-            }
-            | prompt
-            | self._llm
-            | output_parser
-        )
+        # 히스토리 사용 여부에 따라 체인 구성 변경
+        if self._config.use_history:
+            chain = (
+                {
+                    "input" : itemgetter("input"),
+                    "history" : itemgetter("history"),
+                    "trim_history" : RunnableLambda(
+                        lambda x: trim_messages(
+                            x["history"],
+                            max_tokens=2000,
+                            strategy="last",
+                            token_counter=self._llm.get_num_tokens_from_messages,
+                        )
+                    ),
+                    "documents" : RunnableLambda( lambda x: self._document_xml_convert(x["input"]) ),
+                }
+                | prompt
+                | self._llm
+                | output_parser
+            )
+        else:
+            chain = (
+                {
+                    "input" : itemgetter("input"),
+                    "documents" : RunnableLambda( lambda x: self._document_xml_convert(x["input"]) ),
+                }
+                | prompt
+                | self._llm
+                | output_parser
+            )
 
         self._chain = RunnableWithMessageHistory(
             chain,  # 실행할 Runnable 객체
