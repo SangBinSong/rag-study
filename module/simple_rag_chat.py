@@ -1,48 +1,52 @@
 from collections import defaultdict
-from operator import itemgetter
+from typing import List
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.runnables import RunnableWithMessageHistory
+from langchain_core.runnables import RunnablePassthrough, RunnableWithMessageHistory
 from pydantic import BaseModel
 from module.vector_db import VectorDB
-from langchain_core.runnables import RunnableLambda
 from langchain_core.messages import (
     BaseMessage,
     SystemMessage,
     trim_messages,
 )
 from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, MessagesPlaceholder, SystemMessagePromptTemplate
-from langchain.retrievers import EnsembleRetriever, ContextualCompressionRetriever
+from langchain.retrievers import EnsembleRetriever, ContextualCompressionRetriever, MultiQueryRetriever
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.documents import Document
 from langchain_community.document_compressors import JinaRerank
 from langchain_community.retrievers import BM25Retriever
 import secrets
 
 class SimpleRAGChat:
-    class RAGCongig(BaseModel):
-        retriever_k: int = 20
+    class RAGConfig(BaseModel):
+        retriever_k: int = 30
         bm25_k: int = 20
         ensemble_weights: list[float] = [0.4, 0.6]
         jina_reranker_model: str = "jina-reranker-m0"
         compressor_top_n: int = 15
-        use_history: bool = True
+        use_history_prompt: bool = True
+        use_history_query: bool = True
         
-    def __init__(self, llm: BaseChatModel, vector_store: VectorDB, config: RAGCongig = RAGCongig()):
+    def __init__(self, llm: BaseChatModel, vector_store: VectorDB, config: RAGConfig = RAGConfig(), summarizer_llm: BaseChatModel = None):
         self._llm: BaseChatModel = llm
+        self._summarizer_llm: BaseChatModel = summarizer_llm
         self._vector_store: VectorDB = vector_store
-        self._config: SimpleRAGChat.RAGCongig = config
         self._store: dict[str, BaseChatMessageHistory] = defaultdict(ChatMessageHistory)
         self._retriever: ContextualCompressionRetriever = None
         self._chain: RunnableWithMessageHistory = None
 
         self.new_history_session()
-        self._make_retriever()
-        self._make_chain()
+        self.set_config(config)
 
     def _make_retriever(self):
         # 1) Dense retriever
         dense = self._vector_store.as_retriever(search_kwargs={"k": 20})
+        if self._config.use_history_query and self._summarizer_llm is not None:
+            dense = MultiQueryRetriever.from_llm(
+                retriever=dense, llm=self._summarizer_llm
+            )
 
         # 2) BM25 retriever (항상 사용)
         bm25 = BM25Retriever.from_documents(list(self._vector_store.vectorstore.docstore._dict.values()))
@@ -52,6 +56,7 @@ class SimpleRAGChat:
         base = EnsembleRetriever(
             retrievers=[bm25, dense],
             weights=[0.4, 0.6],
+            search_type="mmr",
         )
 
         # 4) 리랭커/압축 (JinaRerank)
@@ -60,22 +65,47 @@ class SimpleRAGChat:
             top_n=15
         )
 
-        retriever = ContextualCompressionRetriever( # 리트리버 래퍼를 이용하여 리랭크 진행
+        self._retriever = ContextualCompressionRetriever( # 리트리버 래퍼를 이용하여 리랭크 진행
             base_retriever=base,
             base_compressor=compressor
         )
 
-        self._retriever = retriever
+    def _make_query(self, org_query: str ) -> str:
+        if self._config.use_history_query and self._summarizer_llm is not None:
+
+            trimmed_history = trim_messages(
+                messages=self.get_history_list(),
+                max_tokens=1000,
+                strategy="last",
+                token_counter=self._summarizer_llm,
+            )
+
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    SystemMessage("""대화를 하나의 완전한 검색 쿼리로 바꿔 쓰는 전문가입니다.
+
+쿼리는 채팅 기록 없이도 이해 가능해야 합니다.
+어떠한 서두, 설명, 따옴표도 추가하지 말고 쿼리만 작성하세요."""),
+                    MessagesPlaceholder(variable_name="trimmed_history"),
+                    HumanMessagePromptTemplate.from_template("<question>\n{input}\n</question>"),
+                ]
+            )
+
+            chain = prompt | self._summarizer_llm | StrOutputParser()
+
+            query = chain.invoke({"input": org_query, "trimmed_history": trimmed_history})
+        else:
+            query = org_query
+
+        return query
     
-    def _document_xml_convert(self, query: str) -> str:
-        documents = self._retriever.invoke(query)
-
+    def _document_xml_convert(self, docs: List[Document]) -> str:
         result = ""
-        for i, document in enumerate(documents):
+        for i, doc in enumerate(docs):
             metadata_keys = ['file_name', 'page']
-            metadata = [f"<{key}>{value}</{key}>" for key, value in document.metadata.items() if key in metadata_keys]
+            metadata = [f"<{key}>{value}</{key}>" for key, value in doc.metadata.items() if key in metadata_keys]
 
-            score = document.metadata.get('relevance_score', None)
+            score = doc.metadata.get('relevance_score', None)
             score_attr = f'relevance_score="{score}"' if score is not None else ""
             
             result += f"""<document rank="{i+1}" {score_attr}>
@@ -83,7 +113,7 @@ class SimpleRAGChat:
 {"\n".join(metadata)}
 </source>
 <content>
-{document.page_content}
+{doc.page_content}
 </content>
 </document>
 """
@@ -105,8 +135,8 @@ class SimpleRAGChat:
         ]
         
         # 히스토리 사용 시에만 MessagesPlaceholder 추가
-        if self._config.use_history:
-            messages.append(MessagesPlaceholder(variable_name="trim_history"))
+        if self._config.use_history_prompt:
+            messages.append(MessagesPlaceholder(variable_name="history", trim_messages={"max_tokens": 2000, "token_counter": self._llm, "start_on_human": True}))
             
         messages.extend([
             SystemMessagePromptTemplate.from_template("documents>\n{documents}</documents>"),
@@ -117,36 +147,14 @@ class SimpleRAGChat:
 
         output_parser = StrOutputParser()
 
-        # 히스토리 사용 여부에 따라 체인 구성 변경
-        if self._config.use_history:
-            chain = (
-                {
-                    "input" : itemgetter("input"),
-                    "history" : itemgetter("history"),
-                    "trim_history" : RunnableLambda(
-                        lambda x: trim_messages(
-                            x["history"],
-                            max_tokens=2000,
-                            strategy="last",
-                            token_counter=self._llm.get_num_tokens_from_messages,
-                        )
-                    ),
-                    "documents" : RunnableLambda( lambda x: self._document_xml_convert(x["input"]) ),
-                }
-                | prompt
-                | self._llm
-                | output_parser
+        chain = (
+            RunnablePassthrough.assign(
+                documents= self._make_query| self._retriever | self._document_xml_convert
             )
-        else:
-            chain = (
-                {
-                    "input" : itemgetter("input"),
-                    "documents" : RunnableLambda( lambda x: self._document_xml_convert(x["input"]) ),
-                }
-                | prompt
-                | self._llm
-                | output_parser
-            )
+            | prompt
+            | self._llm
+            | output_parser
+        )
 
         self._chain = RunnableWithMessageHistory(
             chain,  # 실행할 Runnable 객체
@@ -168,13 +176,22 @@ class SimpleRAGChat:
     def new_history_session(self):
         self._session_id = secrets.token_hex(16)
 
-    def set_llm(self, llm: BaseChatModel):
+    def set_llm(self, llm: BaseChatModel) -> None:
         self._llm = llm
         self._make_chain()
-
-    def set_config(self, config: RAGCongig):
-        self._config = config
+    
+    def set_summarizer_llm(self, summarizer_llm: BaseChatModel) -> None:
+        self._summarizer_llm = summarizer_llm
         self._make_retriever()
+        self._make_chain()
+
+    def set_config(self, config: RAGConfig) -> None:
+        self._config = config
+        if self._summarizer_llm is None:
+            print("summarizer_llm is None, use_history_query is False")
+            self._config.use_history_query = False
+        self._make_retriever()
+        self._make_chain()
 
     def get_session_history(self) -> BaseChatMessageHistory:
         # 세션 ID에 해당하는 대화 기록을 반환합니다.
