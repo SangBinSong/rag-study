@@ -188,10 +188,6 @@ def main():
         with st.chat_message(role):
             st.markdown(message.content)
 
-    if st.session_state.session_input:
-        display_message(st.session_state.session_input)
-        st.session_state.session_input = ""
-
     # React to user input
     prompt = st.chat_input("메시지를 입력하세요...", disabled=st.session_state.session_input != "")
 
@@ -199,6 +195,11 @@ def main():
         st.session_state.session_input = prompt
         st.rerun()
     
+    if st.session_state.session_input:
+        display_message(st.session_state.session_input)
+        st.session_state.session_input = ""
+        st.rerun()
+        
     # Sidebar with info
     with st.sidebar:
         st.header("ℹ️ 정보")
