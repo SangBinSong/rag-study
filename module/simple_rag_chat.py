@@ -149,7 +149,7 @@ class SimpleRAGChat:
 
         chain = (
             RunnablePassthrough.assign(
-                documents= self._make_query| self._retriever | self._document_xml_convert
+                documents= (lambda x: self._make_query(x["input"]))| self._retriever | self._document_xml_convert
             )
             | prompt
             | self._llm
