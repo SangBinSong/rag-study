@@ -4,19 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a RAG (Retrieval-Augmented Generation) study project built with LangChain, focusing on AI-based document processing and vector search capabilities. The project demonstrates modern document loading with Magika AI file detection and FAISS-based vector storage.
+This is a RAG (Retrieval-Augmented Generation) study project built with LangChain. It demonstrates advanced document processing, vector search, and chat capabilities. The key features include AI-based file type detection with Magika, a robust vector database wrapper for FAISS, and multiple user interfaces (CLI, Document Demo UI, Chat UI).
 
 ## Core Architecture
 
 ### Document Processing Pipeline
-- **Document Loading**: `module/document-load.py` provides universal document loading using Magika AI for intelligent file type detection (no extension dependency)
-- **Vector Storage**: `module/vector-db.py` wraps FAISS with embedding compatibility checks and optional persistence
-- **Integration Point**: `main.py` serves as the entry point for demonstrations and testing
+-   **`module/document_parser.py`**: A universal document loader that uses Google's Magika for intelligent file type detection, independent of file extensions. It supports various formats and integrates with LangChain loaders.
+-   **`module/vector_db.py`**: A wrapper for the FAISS vector store. It handles embedding compatibility checks, selective persistence, and provides a clean API for vector operations.
 
-### Key Design Principles
-- **AI-First File Detection**: Uses Magika library instead of file extensions for accurate document type identification
-- **Memory-Centric Vector Storage**: FAISS operates primarily in-memory with selective persistence to avoid re-embedding
-- **Embedding Compatibility**: Strict embedding model validation prevents vector dimension mismatches
+### RAG Chat Pipeline
+-   **`module/simple_rag_chat.py`**: Implements the core RAG logic for the chat application. It features an advanced retrieval chain, including an ensemble of BM25 and dense retrievers, a multi-query retriever, and a Jina re-ranker for compressing and re-ranking results. It also manages chat history.
+
+### User Interfaces
+-   **`main.py`**: A command-line interface (CLI) to demonstrate document loading and vector search functionalities.
+-   **`streamlit_app.py`**: A Streamlit web application that provides a UI for uploading documents, managing the vector database, and performing similarity searches.
+-   **`chat_app.py`**: A Streamlit-based chat interface that allows users to have a conversation with the RAG system based on the documents in the vector database.
 
 ## Development Commands
 
@@ -28,103 +30,82 @@ uv sync
 
 # Create .env file for API key configuration
 cp .env.example .env
-# Or create directly
-echo "OPENAI_API_KEY=your-key-here" > .env
+# Then, add your OpenAI API key to the .env file
+# OPENAI_API_KEY="your-key-here"
 ```
 
-### Running the Project
+### Running the Applications
 
 ```bash
-# Run main demo (CLI)
-uv run main.py
+# Run the main CLI demo
+uv run python main.py
 
-# Run Streamlit web app
+# Run the Streamlit document processing web app
 uv run streamlit run streamlit_app.py
 
-# Test document loader with sample PDF
-uv run module/document-parser.py
-
-# Test vector database functionality  
-uv run module/vector-db.py
+# Run the Streamlit chat web app
+uv run streamlit run chat_app.py
 ```
 
-### Testing (simplified)
+### Running Individual Modules for Testing
 
 ```bash
-# Run individual test files
-uv run test/faiss-test.py
-uv run test/langchain-test.py
-uv run test/pydantic-test.py
+# Test the document parser module
+uv run python module/document_parser.py
+
+# Test the vector database module
+uv run python module/vector_db.py
 ```
 
 ## Project Structure
 
 ```text
-rag-study/
+.
+├── .claude/
+├── .db/
+├── .venv/
 ├── module/
-│   ├── document-parser.py  # Magika AI-based document loader
-│   └── vector-db.py        # FAISS vector database wrapper
-├── test/                   # Simple test scripts
-│   ├── faiss-test.py
-│   ├── langchain-test.py
-│   └── pydantic-test.py
-├── sample/                 # Sample documents
-│   └── 국가별 공공부문 AI 도입 및 활용 전략.pdf
-├── main.py                 # CLI integration demo
-├── streamlit_app.py        # Web UI demo
-├── .env.example            # Environment variables template
-├── pyproject.toml          # uv project configuration
-└── CLAUDE.md              # This file
-```
-
-## Module Integration
-
-### DocumentLoader + VectorDB Workflow
-
-```python
-from module.document_parser import load_documents
-from module.vector_db import VectorDB
-
-# Load documents with Magika AI detection
-documents = load_documents(
-    "sample/국가별 공공부문 AI 도입 및 활용 전략.pdf",
-    chunk_size=1000, 
-    chunk_overlap=200,
-    split_documents=True
-)
-
-# Store in vector database
-vector_db = VectorDB(storage_path="./db/faiss_store")
-vector_db.add_documents(documents)
-results = vector_db.similarity_search("AI 도입 전략", k=5)
+│   ├── document_parser.py      # Magika AI-based document loader
+│   ├── simple_rag_chat.py      # Core RAG chat logic
+│   └── vector_db.py            # FAISS vector database wrapper
+├── sample/
+│   └── 국가별 공공부문 AI 도입 및 활용 전략.pdf # Sample document
+├── test/
+│   ├── db/
+│   └── faiss-test.py
+├── .env.example
+├── AGENTS.md
+├── chat_app.py                 # Streamlit Chat UI
+├── CLAUDE.md
+├── main.py                     # CLI integration demo
+├── pyproject.toml
+├── README.md
+├── streamlit_app.py            # Streamlit Document Demo UI
+└── uv.lock
 ```
 
 ## Critical Implementation Details
 
-### Document Loading Pipeline
+### Document Loading (`document_parser.py`)
+-   **AI-First File Detection**: Relies on `magika` for content-based file type identification.
+-   **Broad Format Support**: Handles PDF, TXT, CSV, HTML, DOCX, PPTX, XLSX, MD, and JSON.
+-   **Korean PDF Optimization**: Uses `PyMuPDFLoader` for superior text extraction from Korean PDFs.
 
-- **Magika Detection**: Document loading relies entirely on AI-based content analysis, not file extensions
-- **Supported Formats**: PDF, TXT, CSV, HTML, DOCX, PPTX, XLSX, MD, JSON through content analysis
-- **Korean PDF Support**: Uses PyMuPDFLoader for better Korean text extraction from PDFs
-- **Chunk Management**: Documents are automatically split into manageable chunks with configurable overlap
+### Vector Database (`vector_db.py`)
+-   **Embedding Compatibility**: Saves and checks embedding model information (`model_class`, `model_name`, `embedding_size`) to prevent dimension conflicts when loading a database from disk.
+-   **Memory-Centric with Persistence**: Operates primarily in-memory for speed, with an option to save to disk to avoid re-embedding.
 
-### Vector Database Architecture
+### RAG Chat (`simple_rag_chat.py`)
+-   **Ensemble Retriever**: Combines `BM25Retriever` (keyword-based) and a `FAISS` dense retriever (semantic-based) for more robust search results.
+-   **Query Expansion**: Uses `MultiQueryRetriever` to generate multiple variations of a user's query from different perspectives.
+-   **Re-ranking**: Employs `JinaRerank` to re-rank the retrieved documents for relevance, improving the quality of the context provided to the LLM.
+-   **History Management**: `RunnableWithMessageHistory` is used to maintain conversation history for context-aware responses.
 
-- **Embedding Compatibility**: Vector database automatically saves/loads embedding model info to prevent dimension conflicts
-- **Memory-Centric Design**: FAISS operates primarily in-memory with selective persistence to avoid re-embedding
-- **Persistence Strategy**: Only saves to disk when explicitly requested, preventing unnecessary I/O
-- **Compatibility Checks**: Strict validation of embedding dimensions and model types
+## Changelog
 
-### Environment Requirements
-
-- **Python Version**: Requires exactly Python 3.12 (specified in pyproject.toml)
-- **OpenAI API**: Required for text embeddings (text-embedding-3-small model)
-- **UV Package Manager**: All dependencies managed through uv for reproducible builds
-
-## Sample Data
-
-- `sample/국가별 공공부문 AI 도입 및 활용 전략.pdf` - Korean government AI adoption strategy document for testing
-
-## Key Dependencies
-
-Core packages: `langchain`, `langchain-community`, `langchain-openai`, `langchain-pymupdf4llm`, `faiss-cpu`, `magika`, `streamlit`
+-   **2025-09-04**:
+    -   Thoroughly updated and revised the entire document to reflect the current project state.
+    -   Corrected the project structure diagram and file descriptions.
+    -   Added detailed explanations for `chat_app.py` and `simple_rag_chat.py`.
+    -   Updated development and execution commands.
+    -   Added this changelog.
