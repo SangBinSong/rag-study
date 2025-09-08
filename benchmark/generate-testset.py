@@ -93,7 +93,7 @@ async def main():
 
     dataset = generator.generate_with_langchain_docs(
         documents[:],
-        testset_size=10,  # 테스트용으로 줄임
+        testset_size=30,  # 테스트용으로 줄임
         transforms=transforms,
         query_distribution=distribution,
         with_debugging_logs=True,
@@ -104,36 +104,13 @@ async def main():
         )
     )
 
-    # 각 테스트 샘플에 더 많은 reference_contexts 추가
-    enhanced_samples = []
-    for sample in dataset:
-        try:
-            # 기존 question으로 벡터 검색을 통해 더 많은 컨텍스트 가져오기
-            question = sample.eval_sample.user_input
-            similar_docs = vector_db.vectorstore.similarity_search(question, k=min(15, len(documents)))
-            
-            # 더 많은 reference contexts 생성
-            enhanced_contexts = [doc.page_content for doc in similar_docs]
-            
-            # 샘플 업데이트
-            sample_dict = sample.model_dump() if hasattr(sample, 'model_dump') else sample.dict()
-            sample_dict['eval_sample']['reference_contexts'] = enhanced_contexts
-            enhanced_samples.append(sample_dict)
-        except Exception as e:
-            print(f"Error enhancing sample: {e}")
-            # 오류 발생시 기존 샘플 사용
-            enhanced_samples.append(sample.model_dump() if hasattr(sample, 'model_dump') else sample.dict())
-    
     filename = f"./benchmark/testset_{llm_model.replace(':', '_')}_{embedding_model.replace(':', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
     
-    # UTF-8 인코딩으로 저장
-    import json
-    with open(filename, 'w', encoding='utf-8') as f:
-        for sample in enhanced_samples:
-            f.write(json.dumps(sample, ensure_ascii=False) + "\n")
+    dataset.to_jsonl(filename)
     
     print(f"테스트셋 생성 완료: {filename}")
-    print(f"첫 번째 샘플의 reference_contexts 개수: {len(enhanced_samples[0]['eval_sample']['reference_contexts']) if enhanced_samples else 0}")
+    print(f"첫 번째 샘플의 reference_contexts 개수: {len(dataset[0].eval_sample.reference_contexts) if len(dataset) > 0 else 0}")
+    print(f"생성된 샘플 수: {len(dataset)}")
 
 if __name__ == "__main__":
     asyncio.run(main())
