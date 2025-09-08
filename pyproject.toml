@@ -21,4 +21,5 @@ dependencies = [
     "streamlit>=1.49.1",
     "unstructured>=0.18.14",
     "ragas>=0.3.3",
+    "langchain-ollama>=0.3.7",
 ]
