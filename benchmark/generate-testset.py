@@ -1,5 +1,5 @@
 # https://docs.ragas.io/en/stable/getstarted/rag_testset_generation/
-# uv run -m banchmark.generate-testset
+# uv run -m benchmark.generate-testset
 from datetime import datetime
 import logging
 import os
@@ -86,7 +86,7 @@ async def main():
         )
     )
 
-    dataset.to_jsonl(f"testset_{llm_model.replace(':', '_')}_{embedding_model.replace(':', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl")
+    dataset.to_jsonl(f"./benchmark/testset_{llm_model.replace(':', '_')}_{embedding_model.replace(':', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl")
 
 if __name__ == "__main__":
     asyncio.run(main())
