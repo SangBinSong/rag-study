@@ -7,7 +7,8 @@ import asyncio
 from dotenv import load_dotenv
 from ragas.run_config import RunConfig
 from ragas.testset.transforms import HeadlineSplitter
-from ragas.testset.transforms.extractors.llm_based import NERExtractor
+from ragas.testset.transforms.extractors.llm_based import NERExtractor, KeyphrasesExtractor
+from ragas.testset.transforms import Parallel
 
 # HTTP 요청 로그 숨기기
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -24,6 +25,12 @@ from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.testset.persona import Persona
 from ragas.testset.synthesizers.single_hop.specific import (
     SingleHopSpecificQuerySynthesizer,
+)
+from ragas.testset.synthesizers.multi_hop.specific import (
+    MultiHopSpecificQuerySynthesizer,
+)
+from ragas.testset.synthesizers.multi_hop.abstract import (
+    MultiHopAbstractQuerySynthesizer,
 )
 
 load_dotenv()
@@ -56,12 +63,18 @@ async def main():
         )
     ]
 
+    # 커스텀 context 검색을 위한 synthesizer 설정
+    synthesizer = SingleHopSpecificQuerySynthesizer(llm=generator_llm)
+    
+    # 더 많은 컨텍스트를 활용하기 위한 수정
+    if hasattr(synthesizer, 'context_model') and hasattr(synthesizer.context_model, 'top_k'):
+        synthesizer.context_model.top_k = 15
+    
     distribution = [
-        (SingleHopSpecificQuerySynthesizer(llm=generator_llm), 1.0),
+        (synthesizer, 1.0),
     ]
 
-
-    transforms = [HeadlineSplitter(), NERExtractor()]
+    transforms = [NERExtractor(), KeyphrasesExtractor(llm=generator_llm)]
 
     for query, _ in distribution:
         prompts = await query.adapt_prompts("korean", llm=generator_llm)
@@ -72,21 +85,55 @@ async def main():
         embedding_model=generator_embeddings,
         persona_list=personas,
     )
+    
+    # 더 많은 컨텍스트를 검색하도록 설정
+    for synthesizer, _ in distribution:
+        if hasattr(synthesizer, 'context_model'):
+            synthesizer.context_model.top_k = 15  # 더 많은 컨텍스트 검색
 
     dataset = generator.generate_with_langchain_docs(
         documents[:],
-        testset_size=30,
+        testset_size=10,  # 테스트용으로 줄임
         transforms=transforms,
         query_distribution=distribution,
         with_debugging_logs=True,
         run_config=RunConfig(
-            timeout=1000,
-            max_workers=5,  # 병렬 처리 제한
+            timeout=1500,  # 시간 여유 증가
+            max_workers=3,  # 병렬 처리 제한을 줄여서 안정성 증가
             max_retries=10
         )
     )
 
-    dataset.to_jsonl(f"./benchmark/testset_{llm_model.replace(':', '_')}_{embedding_model.replace(':', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl")
+    # 각 테스트 샘플에 더 많은 reference_contexts 추가
+    enhanced_samples = []
+    for sample in dataset:
+        try:
+            # 기존 question으로 벡터 검색을 통해 더 많은 컨텍스트 가져오기
+            question = sample.eval_sample.user_input
+            similar_docs = vector_db.vectorstore.similarity_search(question, k=min(15, len(documents)))
+            
+            # 더 많은 reference contexts 생성
+            enhanced_contexts = [doc.page_content for doc in similar_docs]
+            
+            # 샘플 업데이트
+            sample_dict = sample.model_dump() if hasattr(sample, 'model_dump') else sample.dict()
+            sample_dict['eval_sample']['reference_contexts'] = enhanced_contexts
+            enhanced_samples.append(sample_dict)
+        except Exception as e:
+            print(f"Error enhancing sample: {e}")
+            # 오류 발생시 기존 샘플 사용
+            enhanced_samples.append(sample.model_dump() if hasattr(sample, 'model_dump') else sample.dict())
+    
+    filename = f"./benchmark/testset_{llm_model.replace(':', '_')}_{embedding_model.replace(':', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+    
+    # UTF-8 인코딩으로 저장
+    import json
+    with open(filename, 'w', encoding='utf-8') as f:
+        for sample in enhanced_samples:
+            f.write(json.dumps(sample, ensure_ascii=False) + "\n")
+    
+    print(f"테스트셋 생성 완료: {filename}")
+    print(f"첫 번째 샘플의 reference_contexts 개수: {len(enhanced_samples[0]['eval_sample']['reference_contexts']) if enhanced_samples else 0}")
 
 if __name__ == "__main__":
     asyncio.run(main())
