@@ -1,0 +1,64 @@
+{
+  "builder_name": "json",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "json",
+  "dataset_size": 54661,
+  "description": "",
+  "download_checksums": {
+    "/Users/songsangbin/Documents/student/RAG/rag-study/./benchmark/testset_gpt-4.1-nano_text-embedding-3-small_20250908_152046.jsonl": {
+      "num_bytes": 58247,
+      "checksum": null
+    }
+  },
+  "download_size": 58247,
+  "features": {
+    "user_input": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "reference_contexts": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "List"
+    },
+    "reference": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "synthesizer_name": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "response": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "retrieved_contexts": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "List"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 112908,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 54661,
+      "num_examples": 30,
+      "dataset_name": "json"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from module.vector_db import VectorDB
 from langchain_core.messages import (
     BaseMessage,
+    AIMessage,
     SystemMessage,
     trim_messages,
 )
@@ -139,21 +140,20 @@ class SimpleRAGChat:
             messages.append(MessagesPlaceholder(variable_name="history", trim_messages={"max_tokens": 2000, "token_counter": self._llm, "start_on_human": True}))
             
         messages.extend([
-            SystemMessagePromptTemplate.from_template("documents>\n{documents}</documents>"),
+            SystemMessagePromptTemplate.from_template("documents>\n{formatted_documents}</documents>"),
             HumanMessagePromptTemplate.from_template("<question>\n{input}\n</question>"),
         ])
         
         prompt = ChatPromptTemplate.from_messages(messages)
 
-        output_parser = StrOutputParser()
-
         chain = (
             RunnablePassthrough.assign(
-                documents= (lambda x: self._make_query(x["input"]))| self._retriever | self._document_xml_convert
+                documents= (lambda x: self._make_query(x["input"]))| self._retriever
+            ).assign(
+                formatted_documents= (lambda x: self._document_xml_convert(x["documents"])) 
+            ).assign(
+                answer= (prompt | self._llm | StrOutputParser())
             )
-            | prompt
-            | self._llm
-            | output_parser
         )
 
         self._chain = RunnableWithMessageHistory(
@@ -161,6 +161,7 @@ class SimpleRAGChat:
             self.get_session_history,# 세션 기록을 가져오는 함수
             input_messages_key="input",  # 입력 메시지의 키
             history_messages_key="history",  # 기록 메시지의 키
+            output_messages_key="answer",
         )
 
     def send(self, query: str) -> str:
@@ -171,7 +172,17 @@ class SimpleRAGChat:
             }
         )
 
-        return output
+        return output["answer"]
+
+    def send_with_documents(self, query: str) -> tuple[str, List[Document]]:
+        output = self._chain.invoke(
+            {"input": query},
+            {
+                "configurable" : {"session_id": self._session_id}
+            }
+        )
+
+        return output["answer"], output["documents"]
 
     def new_history_session(self):
         self._session_id = secrets.token_hex(16)
