@@ -6,9 +6,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 from ragas.run_config import RunConfig
-from ragas.testset.transforms import HeadlineSplitter
 from ragas.testset.transforms.extractors.llm_based import NERExtractor, KeyphrasesExtractor
-from ragas.testset.transforms import Parallel
 
 # HTTP 요청 로그 숨기기
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -26,23 +24,19 @@ from ragas.testset.persona import Persona
 from ragas.testset.synthesizers.single_hop.specific import (
     SingleHopSpecificQuerySynthesizer,
 )
-from ragas.testset.synthesizers.multi_hop.specific import (
-    MultiHopSpecificQuerySynthesizer,
-)
-from ragas.testset.synthesizers.multi_hop.abstract import (
-    MultiHopAbstractQuerySynthesizer,
-)
 
 load_dotenv()
+
+os.environ["LANGSMITH_PROJECT"] = "RAGAS-TESTSET"
 
 async def main():
     vector_db = VectorDB(storage_path="./db/faiss")
     documents = list(vector_db.vectorstore.docstore._dict.values())
 
-    llm_model = "gpt-4.1-nano"
+    llm_model = "gpt-4.1-mini"
     embedding_model = "text-embedding-3-small"
 
-    generator_llm = LangchainLLMWrapper(ChatOpenAI(model=llm_model))
+    generator_llm = LangchainLLMWrapper(ChatOpenAI(model=llm_model, temperature=0.1))
     generator_embeddings = LangchainEmbeddingsWrapper(OpenAIEmbeddings(model=embedding_model))
 
     personas = [
@@ -109,7 +103,6 @@ async def main():
     dataset.to_jsonl(filename)
     
     print(f"테스트셋 생성 완료: {filename}")
-    print(f"첫 번째 샘플의 reference_contexts 개수: {len(dataset[0].eval_sample.reference_contexts) if len(dataset) > 0 else 0}")
     print(f"생성된 샘플 수: {len(dataset)}")
 
 if __name__ == "__main__":

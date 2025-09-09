@@ -3,15 +3,15 @@
   "citation": "",
   "config_name": "default",
   "dataset_name": "json",
-  "dataset_size": 54661,
+  "dataset_size": 54703,
   "description": "",
   "download_checksums": {
-    "/Users/songsangbin/Documents/student/RAG/rag-study/./benchmark/testset_gpt-4.1-nano_text-embedding-3-small_20250908_152046.jsonl": {
-      "num_bytes": 58247,
+    "/Users/songsangbin/Documents/student/RAG/rag-study/./benchmark/testset_gpt-4.1-nano_text-embedding-3-small_20250909_082342.jsonl": {
+      "num_bytes": 58288,
       "checksum": null
     }
   },
-  "download_size": 58247,
+  "download_size": 58288,
   "features": {
     "user_input": {
       "dtype": "string",
@@ -32,6 +32,10 @@
       "dtype": "string",
       "_type": "Value"
     },
+    "ground_truth": {
+      "dtype": "string",
+      "_type": "Value"
+    },
     "response": {
       "dtype": "string",
       "_type": "Value"
@@ -46,11 +50,11 @@
   },
   "homepage": "",
   "license": "",
-  "size_in_bytes": 112908,
+  "size_in_bytes": 112991,
   "splits": {
     "train": {
       "name": "train",
-      "num_bytes": 54661,
+      "num_bytes": 54703,
       "num_examples": 30,
       "dataset_name": "json"
     }

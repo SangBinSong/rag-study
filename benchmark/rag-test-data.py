@@ -3,6 +3,10 @@ from datasets import load_dataset
 from module.vector_db import VectorDB
 from module.simple_rag_chat import SimpleRAGChat
 from langchain_openai import ChatOpenAI
+import pandas as pd
+
+import os
+os.environ["LANGSMITH_PROJECT"] = "RAGAS-TESTSET"
 
 vector_db = VectorDB(storage_path="./db/faiss")
 rag = SimpleRAGChat(
@@ -14,7 +18,10 @@ rag = SimpleRAGChat(
     )
 )
 
-test_dataset = load_dataset("json", data_files="./benchmark/testset_gpt-4.1-nano_text-embedding-3-small_20250909_044039.jsonl", split="train")
+test_dataset = load_dataset("json", data_files="./benchmark/testset_gpt-4.1-nano_text-embedding-3-small_20250909_082342.jsonl", split="train")
+df = pd.read_json("./benchmark/ground_truth_20250909_094947.jsonl", lines=True)
+
+test_dataset = test_dataset.add_column("ground_truth", df["ground_truth"])
 
 # testset의 각 질문에 대해 RAG 응답 생성
 print("RAG 응답 생성 중...")

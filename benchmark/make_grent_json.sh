@@ -1,0 +1,1 @@
+jq '{user_input: .user_input}' benchmark/testset_gpt-4.1-nano_text-embedding-3-small_20250909_082342.jsonl > benchmark/ground_truth_$(date +%Y%m%d_%H%M%S).jsonl
