@@ -12,6 +12,7 @@ vector_db = VectorDB(storage_path="./db/faiss")
 rag = SimpleRAGChat(
     llm=ChatOpenAI(model="gpt-4.1-mini", temperature=0.1),
     vector_store=vector_db,
+    summarizer_llm=ChatOpenAI(model="gpt-4.1-nano", temperature=0.1),
     config=SimpleRAGChat.RAGConfig(
         use_history_prompt=False,
         use_history_query=False
