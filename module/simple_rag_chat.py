@@ -1,4 +1,5 @@
 from collections import defaultdict
+from readline import get_history_length
 from typing import List
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
@@ -29,6 +30,7 @@ class SimpleRAGChat:
         compressor_top_n: int = 15
         use_history_prompt: bool = True
         use_history_query: bool = True
+        use_multi_query: bool = True
         
     def __init__(self, llm: BaseChatModel, vector_store: VectorDB, config: RAGConfig = RAGConfig(), summarizer_llm: BaseChatModel = None):
         self._llm: BaseChatModel = llm
@@ -44,7 +46,7 @@ class SimpleRAGChat:
     def _make_retriever(self):
         # 1) Dense retriever
         dense = self._vector_store.as_retriever(search_kwargs={"k": 20})
-        if self._config.use_history_query and self._summarizer_llm is not None:
+        if self._config.use_multi_query and self._summarizer_llm is not None:
             dense = MultiQueryRetriever.from_llm(
                 retriever=dense, llm=self._summarizer_llm
             )
@@ -72,7 +74,7 @@ class SimpleRAGChat:
         )
 
     def _make_query(self, org_query: str ) -> str:
-        if self._config.use_history_query and self._summarizer_llm is not None:
+        if self._config.use_history_query and self._summarizer_llm is not None and self.get_history_length() > 0 :
 
             trimmed_history = trim_messages(
                 messages=self.get_history_list(),

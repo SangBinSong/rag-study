@@ -31,7 +31,7 @@ def initialize_session():
 def get_rag_instance():
     return SimpleRAGChat(
         llm=ChatOpenAI(
-            model="gpt-4.1-nano",
+            model="gpt-4.1-mini",
             temperature=0.1
         ),
         vector_store=VectorDB(storage_path="./db/faiss"),
