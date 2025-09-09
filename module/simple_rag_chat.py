@@ -140,7 +140,7 @@ class SimpleRAGChat:
             messages.append(MessagesPlaceholder(variable_name="history", trim_messages={"max_tokens": 2000, "token_counter": self._llm, "start_on_human": True}))
             
         messages.extend([
-            SystemMessagePromptTemplate.from_template("documents>\n{formatted_documents}</documents>"),
+            SystemMessagePromptTemplate.from_template("<documents>\n{formatted_documents}</documents>"),
             HumanMessagePromptTemplate.from_template("<question>\n{input}\n</question>"),
         ])
         
