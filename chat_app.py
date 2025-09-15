@@ -31,12 +31,13 @@ def initialize_session():
 def get_rag_instance():
     return SimpleRAGChat(
         llm=ChatOpenAI(
-            model="gpt-4.1-nano",
-            temperature=0.1
+            model="gpt-4o-mini",
+            temperature=0.1,
+            streaming=True  # 스트리밍 활성화
         ),
         vector_store=VectorDB(storage_path="./db/faiss"),
         summarizer_llm=ChatOpenAI(
-            model="gpt-4.1-nano",
+            model="gpt-4o-mini",
             temperature=0.1
         )
     )
@@ -67,13 +68,35 @@ def main():
 
     if prompt:
         st.session_state.session_input = prompt
-        st.rerun()
+        # st.rerun() 제거 - 스트리밍 처리에서 직접 처리
     
     if st.session_state.session_input:
         with st.chat_message("user"):
             st.markdown(st.session_state.session_input)
 
-        simple_rag.send(st.session_state.session_input)
+        # 스트리밍 응답 처리
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = ""
+            
+            # 스트리밍 응답 생성
+            try:
+                for chunk in simple_rag.send_stream(st.session_state.session_input):
+                    if chunk:  # 빈 청크가 아닌 경우만 처리
+                        full_response += chunk
+                        message_placeholder.markdown(full_response + "▌")
+                        
+                        # 작은 지연을 추가하여 스트리밍 효과 강화
+                        import time
+                        time.sleep(0.01)
+                
+                # 최종 응답 표시 (커서 제거)
+                message_placeholder.markdown(full_response)
+                
+            except Exception as e:
+                message_placeholder.error(f"스트리밍 중 오류가 발생했습니다: {str(e)}")
+        
+        # 입력 초기화 후 페이지 새로고침
         st.session_state.session_input = ""
         st.rerun()
         
@@ -115,7 +138,8 @@ def main():
             """
             - 구체적인 질문을 하면 더 정확한 답변을 받을 수 있습니다
             - 한 번에 하나의 주제에 대해 물어보세요
-            - 현재는 테스트 모드로 입력한 내용을 그대로 답변으로 반환합니다
+            - 응답이 실시간으로 스트리밍됩니다
+            - 문서 기반 RAG 시스템으로 정확한 답변을 제공합니다
             """
         )
 
