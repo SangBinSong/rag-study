@@ -33,12 +33,16 @@ def get_rag_instance():
         llm=ChatOpenAI(
             model="gpt-4o-mini",
             temperature=0.1,
-            streaming=True  # 스트리밍 활성화
+            streaming=True,
+            max_tokens=1000,
+            request_timeout=30
         ),
         vector_store=VectorDB(storage_path="./db/faiss"),
         summarizer_llm=ChatOpenAI(
-            model="gpt-4o-mini",
-            temperature=0.1
+            model="gpt-3.5-turbo",
+            temperature=0.1,
+            max_tokens=200,
+            request_timeout=15
         )
     )
 
@@ -85,11 +89,7 @@ def main():
                     if chunk:  # 빈 청크가 아닌 경우만 처리
                         full_response += chunk
                         message_placeholder.markdown(full_response + "▌")
-                        
-                        # 작은 지연을 추가하여 스트리밍 효과 강화
-                        import time
-                        time.sleep(0.01)
-                
+
                 # 최종 응답 표시 (커서 제거)
                 message_placeholder.markdown(full_response)
                 

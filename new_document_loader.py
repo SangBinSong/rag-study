@@ -28,8 +28,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 ############# CONFIG #############
-CHUNK_SIZE = 500
-CHUNK_OVERLAP = 50
+CHUNK_SIZE = 200
+CHUNK_OVERLAP = 20
 EMBED_MODEL = "text-embedding-3-small"
 EMBED_DIM = 1536
 DB_DIR = "./db/faiss"
@@ -361,7 +361,7 @@ class DocumentLoader:
         vecs = embed_texts(texts_to_embed, self.client, model=EMBED_MODEL)
         return l2_normalize(vecs), ids
 
-    def save_to_faiss(self, chunks: List[Chunk], index_name: str = "index") -> bool:
+    def save_to_faiss(self, chunks: List[Chunk], index_name: str = "index", original_filename: str = None) -> bool:
         if not chunks: return False
         vecs, ids = self.create_embeddings(chunks)
         if len(vecs) == 0: return False
@@ -373,6 +373,16 @@ class DocumentLoader:
         
         # Document 객체 생성
         documents = []
+        # 원본 파일명 추출
+        if not original_filename and chunks:
+            # 첫 번째 청크의 source에서 파일 경로 추출
+            first_chunk_source = chunks[0].source
+            if isinstance(first_chunk_source, dict) and 'pdf_path' in first_chunk_source:
+                pdf_path = first_chunk_source['pdf_path']
+                original_filename = Path(pdf_path).name
+            else:
+                original_filename = "문서"
+        
         for i, chunk in enumerate(chunks):
             if chunk.type != "image":  # 이미지가 아닌 청크만
                 doc = Document(
@@ -386,7 +396,8 @@ class DocumentLoader:
                         "source": chunk.source,
                         "hash": chunk.hash,
                         "bbox": chunk.bbox,
-                        "nbbox": chunk.nbbox
+                        "nbbox": chunk.nbbox,
+                        "file_name": original_filename  # 파일명 추가
                     }
                 )
                 documents.append(doc)
@@ -410,7 +421,7 @@ class DocumentLoader:
 
     def process_and_save(self, pdf_path: str, index_name: str = "index", original_filename: str = None) -> bool:
         chunks = self.load_document(pdf_path, original_filename=original_filename)
-        return self.save_to_faiss(chunks, index_name)
+        return self.save_to_faiss(chunks, index_name, original_filename)
 
 
 def main():

@@ -158,7 +158,7 @@ def main():
 
                     # 벡터 DB에 자동 저장
                     with st.spinner("임베딩 생성 및 FAISS 인덱스 저장 중..."):
-                        success = loader.save_to_faiss(chunks, index_name)
+                        success = loader.save_to_faiss(chunks, index_name, original_filename)
                         if success:
                             st.success(f"FAISS 인덱스 저장 완료: {os.path.join(DB_DIR, f'{index_name}.faiss')}")
 
