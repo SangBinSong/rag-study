@@ -57,11 +57,13 @@ class Chunk:
 
 
 def merge_text_blocks(blocks: List[Tuple[Tuple[float, float, float, float], str]],
-                      separation_threshold: float = 10.0) -> List[Tuple[Tuple[float, float, float, float], str]]:
+                      separation_threshold: float = 5.0, 
+                      max_merge_size: int = 2000) -> List[Tuple[Tuple[float, float, float, float], str]]:
     """
     시각적으로 가까운 텍스트 블록을 병합합니다.
     - blocks: (bbox, text) 튜플의 리스트
-    - separation_threshold: 이 값(pt)보다 세로 간격이 크면 다른 문단으로 취급
+    - separation_threshold: 이 값(pt)보다 세로 간격이 크면 다른 문단으로 취급 (기본값을 5.0으로 줄임)
+    - max_merge_size: 병합된 텍스트의 최대 길이 (문자 수 기준)
     """
     if not blocks:
         return []
@@ -77,10 +79,18 @@ def merge_text_blocks(blocks: List[Tuple[Tuple[float, float, float, float], str]
 
         # 이전 블록의 하단과 다음 블록의 상단 사이의 수직 거리
         vertical_gap = next_bbox[1] - current_bbox[3]
+        
+        # 수평 겹침 확인 (더 엄격한 조건)
+        horizontal_overlap = not (next_bbox[0] > current_bbox[2] or next_bbox[2] < current_bbox[0])
+        
+        # 병합 조건을 더 엄격하게 설정
+        should_merge = (
+            vertical_gap < separation_threshold and  # 수직 거리가 임계값보다 작고
+            horizontal_overlap and  # 수평으로 겹치고
+            len(current_text) + len(next_text) < max_merge_size  # 최대 크기 제한
+        )
 
-        # 병합 조건: 수직 거리가 임계값보다 작고, 가로로 겹치지 않아야 함 (일반적인 문단 흐름)
-        if vertical_gap < separation_threshold and not (
-                next_bbox[0] > current_bbox[2] or next_bbox[2] < current_bbox[0]):
+        if should_merge:
             # 텍스트 병합
             current_text += "\n" + next_text
             # 바운딩 박스 확장
@@ -243,7 +253,7 @@ def extract_images(page: fitz.Page, out_dir: str, pdf_name: str) -> List[
     return results
 
 
-def embed_texts(texts: List[str], client: OpenAI, model: str = EMBED_MODEL, batch: int = 100) -> np.ndarray:
+def embed_texts(texts: List[str], client: OpenAI, model: str = EMBED_MODEL, batch: int = 1024) -> np.ndarray:
     if not texts: return np.zeros((0, EMBED_DIM), dtype="float32")
     vecs = []
     for i in range(0, len(texts), batch):
@@ -255,10 +265,6 @@ def embed_texts(texts: List[str], client: OpenAI, model: str = EMBED_MODEL, batc
 def l2_normalize(mat: np.ndarray, eps: float = 1e-12) -> np.ndarray:
     norms = np.linalg.norm(mat, axis=1, keepdims=True)
     return mat / np.maximum(norms, eps)
-
-
-# load_or_create_index, save_faiss 함수는 더 이상 사용하지 않음 (LangChain FAISS 사용)
-
 
 # PDF 처리 메인 파이프라인
 def process_pdf(pdf_path: str, doc_id_prefix: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP,
@@ -284,11 +290,11 @@ def process_pdf(pdf_path: str, doc_id_prefix: str, chunk_size: int = CHUNK_SIZE,
                     hash=sha256_of(it["path"]), image_path=it["path"], metadata=it
                 ))
 
-            # [수정됨] 텍스트 블록 추출 후 병합 과정 추가
+            # 텍스트 블록 추출 후 병합 과정 추가
             raw_blocks = extract_text_blocks(page)
 
-            # [수정됨] 병합된 블록을 사용
-            merged_blocks = merge_text_blocks(raw_blocks)
+            # 병합된 블록을 사용
+            merged_blocks = merge_text_blocks(raw_blocks, separation_threshold=5.0, max_merge_size=chunk_size * 4)
 
             if not merged_blocks and is_scanned_page(page):
                 ocr_text = ocr_page_text(page)
@@ -395,13 +401,9 @@ class DocumentLoader:
         
         # 추가 메타데이터 저장 (기존 형식 유지)
         manifest_path = os.path.join(DB_DIR, f"{index_name}_chunks.jsonl")
-        ids_path = os.path.join(DB_DIR, f"{index_name}_ids.json")
-        
         with open(manifest_path, "w", encoding="utf-8") as fp:
             for ch in chunks:
                 fp.write(json.dumps(asdict(ch), ensure_ascii=False) + "\n")
-        with open(ids_path, "w", encoding="utf-8") as fp:
-            json.dump(ids, fp, ensure_ascii=False, indent=2)
 
         logger.info(f"FAISS index and metadata saved for index '{index_name}' (LangChain compatible).")
         return True

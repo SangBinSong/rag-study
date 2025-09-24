@@ -131,13 +131,13 @@ def main():
         col2.metric("파일 크기", f"{pdf_info['file_size'] / 1024 / 1024:.2f} MB")
 
         # 문서 분석 및 자동 저장 버튼
-        if st.button("문서 분석 및 벡터 DB 저장", use_container_width=True):
+        if st.button("문서 분석 및 벡터 DB 저장", width='stretch'):
             # 로더 인스턴스 생성
             loader = DocumentLoader(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
             # 로딩 표시 및 처리
             with st.spinner("문서를 분석 중입니다..."):
-                # [수정됨] 원본 파일명을 load_document에 전달
+                # 원본 파일명을 load_document에 전달
                 original_filename = uploaded_file.name
                 chunks = loader.load_document(pdf_path, original_filename=original_filename)
 
@@ -181,10 +181,10 @@ def main():
             st.header("PDF 청크 미리보기")
 
             # 페이지 선택기
-            page_selector = st.select_slider(
+            page_selector = st.selectbox(
                 "페이지 선택",
                 options=st.session_state['pages'],
-                value=st.session_state['current_page']
+                index=st.session_state['pages'].index(st.session_state['current_page']) if st.session_state['current_page'] in st.session_state['pages'] else 0
             )
             st.session_state['current_page'] = page_selector
 
@@ -221,7 +221,7 @@ def main():
                     img = draw_overlays(base_img, chunks_dict, highlight_id=selected_id if selected_chunk else "")
 
                     # 이미지 표시
-                    st.image(img, caption=f"페이지 {page_selector}의 청크 시각화", use_container_width=True)
+                    st.image(img, caption=f"페이지 {page_selector}의 청크 시각화", width='stretch')
                     st.caption("파란색: text, 주황색: table, 초록색: image (선 두께 ↑ = 선택된 청크)")
 
                 # 청크 상세 정보 표시
