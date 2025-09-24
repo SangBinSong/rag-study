@@ -38,7 +38,6 @@ class SimpleRAGChat:
         self._store: dict[str, BaseChatMessageHistory] = defaultdict(ChatMessageHistory)
         self._retriever: ContextualCompressionRetriever = None
         self._chain: RunnableWithMessageHistory = None
-        self._query_cache: dict[str, str] = {}
 
         self.new_history_session()
         self.set_config(config)
@@ -215,11 +214,6 @@ class SimpleRAGChat:
     def send_stream(self, query: str):
         """스트리밍 응답을 위한 제너레이터"""
         try:
-            # 간단한 캐시 확인
-            if query in self._query_cache:
-                yield self._query_cache[query]
-                return
-            
             # 쿼리 변환
             processed_query = self._make_query(query)
             
@@ -279,9 +273,6 @@ class SimpleRAGChat:
             # 스트리밍 완료 후 AI 응답을 히스토리에 추가
             if full_response:
                 self.get_session_history().add_ai_message(full_response)
-                # 간단한 캐시에 저장
-                if len(self._query_cache) < 10:
-                    self._query_cache[query] = full_response
                     
         except Exception as e:
             error_msg = f"오류가 발생했습니다: {str(e)}"
